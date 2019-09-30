@@ -1,8 +1,13 @@
 import requests
 import json
 
+MIAN_GROUP_ID = "dba9fe96-598e-459d-b83a-6a85acf30acc@2"
 PUBLIC_GROUP_ID = "711f8509-50fb-4f28-bb43-e6688726d28a@2"
 PRIVATE_GROUP_ID = "67ecf920-669b-400a-b77e-cd0258c25372@2"
+DEMO1_GROUP_ID = "c23fcf41-cd55-4f93-8013-11e178c633c3@2"
+DEMO_PUBLIC_ID = "c5150d39-0df4-476c-ba7d-162fc6f60ca7@2"
+ME_ID = "4e3e5ba6-07d4-411e-9cf4-8ac138a3b04b@2"
+
 
 APPLICATION_ID = "e0f70fe7-b5c1-4d0c-8833-f6ec6c31c75e@2"
 APPLICATION_SECRET = "3XIVOO04LW"
@@ -35,9 +40,125 @@ class API():
     """
     dealing with private groups
     [
-        + create as a sub-group of the main group organization
+        + send message(s) to a specific group
+        + send message(s) to all sub-groups of a specific group
+    ]
+    """
+
+    def send_message_to_private_group(self , message , group_id = PRIVATE_GROUP_ID):
+        """
+        you can use this method to send new message(s) to both public and private groups
+        """
+        url = URL + "groups/" + group_id + "/messages"
+        
+        payload = {
+            'message': message
+        }
+        data = json.dumps(payload)
+
+        headers = {
+            'accessToken': self.__access_token,
+            'Content-Type': "application/json",
+            'cache-control': "no-cache",
+        }
+        
+        response = requests.post( url, data=data, headers=headers)
+        
+        return response.json()
+
+    def send_message_to_private_sub_groups(self , message , parent_group_id = PRIVATE_GROUP_ID):
+        sub_groups = self.get_sub_groups(parent_group_id).get('subGroups')
+        for group in sub_groups:
+            group_type = group.get('groupType')
+            if group_type == 'Group':
+                group_id = group.get('groupId')
+                self.send_message_to_private_group(message , group_id)
+
+
+    """
+    dealing with public groups
+    [
+        + add subscriber(s) to a specific group  
+        + remove subscriber(s) from a specific group
+    ]
+    """
+
+    def add_subscribers_to_public_group(self , subscribers_list , group_id = DEMO_PUBLIC_ID ):
+
+        url = URL + "groups/" + group_id +"/subscribers/add"
+
+        payload = {
+            'subscribers': subscribers_list
+        }
+        data = json.dumps(payload)
+
+        headers = {
+            'accessToken': self.__access_token,
+            'Content-Type': "application/json",
+            'cache-control': "no-cache",
+        }
+
+        response = requests.put(url, data=data, headers=headers)
+
+        return response.json()
+
+    def remove_subscribers_from_public_group(self , subscribers_list , group_id = DEMO_PUBLIC_ID ):
+
+        url = URL + "groups/" + group_id + "/subscribers/remove"
+
+        payload = {
+            'subscribers':subscribers_list
+        }
+        data = json.dumps(payload)
+
+        headers = {
+            'accessToken': self.__access_token,
+            'Content-Type': "application/json",
+            'cache-control': "no-cache",
+        }
+
+        response = requests.put(url, data=data, headers=headers)
+
+        return response.json()
+
+    def send_message_to_public_group(self , message , subscribers_list
+        ,group_id = DEMO_PUBLIC_ID
+        ,send_to_all_subscribers = False
+        ):
+
+        """ be sure to all members of subscribers_list are alredy subscribers """
+        self.add_subscribers_to_public_group(subscribers_list , group_id)
+
+        """ now you can send message to all members in the subscribers_list """
+        url = URL + "groups/" + group_id + "/messages"
+
+        payload = {
+            'Message': message,
+            'subscribers': subscribers_list, 
+            'sendToAllSubscribers': send_to_all_subscribers
+        }
+        data = json.dumps(payload)
+
+        headers = {
+            'accessToken': self.__access_token,
+            'Content-Type': "application/json",
+            'cache-control': "no-cache",
+        }
+
+        response = requests.post( url, data=data, headers=headers)
+
+        return response.json()
+
+
+    """
+    dealing with both public and private groups
+    [
+        + create a group (public/private) by default is private ,
+            you can make it public py passing "group_type" parameter with the value "ConnectGroup"
         + add memeber(s) to a specific group
-        + send message(s) to a spacific group  
+        + remove member(s) from a spacific group
+        + get all members of a specific group 
+        + get all sub-groups from a specific group 
     ]
     """
 
@@ -45,7 +166,13 @@ class API():
             , welcome_message = "Welcome to the group created via sadeem company" 
             , short_desc = "Short description" , long_desc = "Long description"
         ):
-        
+
+        """
+        create both public and private groups 
+        by default it create a private group
+        but you can create a public group by passing "group_type" parameter with the value "ConnectGroup"
+        """
+
         url = URL + "groups"
 
         payload = {
@@ -66,7 +193,7 @@ class API():
 
         return response.json()
 
-    def add_members_to_group(self , members_list , group_id = PUBLIC_GROUP_ID):
+    def add_members_to_group(self , members_list , group_id = PRIVATE_GROUP_ID):
         """
         you can use this method to add new member(s) to both public and private groups
         """
@@ -88,54 +215,80 @@ class API():
         
         return response.json()
 
-    def send_message_to_group(self , message , group_id = PRIVATE_GROUP_ID):
-        url = URL + "groups/" + group_id + "/messages"
-        
-        payload = {
-            'message': message
-        }
-        data = json.dumps(payload)
+    def remove_members_from_group(self , member_id = ME_ID , group_id = PRIVATE_GROUP_ID):
+                
+        url = URL + "groups/" + group_id + "/members/" + member_id
 
+        payload = ""
         headers = {
             'accessToken': self.__access_token,
-            'Content-Type': "application/json",
             'cache-control': "no-cache",
         }
-        
-        response = requests.post( url, data=data, headers=headers)
-        
+
+        response = requests.delete( url, data=payload, headers=headers)
+
         return response.json()
 
-    """
-    dealing with public groups
-    [
-        + create a public group as a sub-group of the main group organization
-        + add memeber(s) to a specific group
-        + add subscriber(s) to a specific group
-        + send message(s) to a spacific group  
-    ]
-    """
+    def get_members_of_group(self , group_id = PRIVATE_GROUP_ID):
 
-    def create_public_group(self , name , members_list , welcome_msg = "Welcome to public group created via sadeem" , group_type = "ConnectGroup" ):
-        url = URL + "groups"
-        
+        url = URL + "groups/" + group_id + "/members"
+
+        payload = ""
+        headers = {
+            'accessToken': self.__access_token,
+            'cache-control': "no-cache",
+        }
+
+        response = requests.get(url, data=payload, headers=headers)
+
+        return response.json()
+
+    def get_sub_groups(self , parent_group_id = PRIVATE_GROUP_ID):
+
+        url = URL + "groups/" + parent_group_id +"/subGroups"
+
+        payload = ""
+        headers = {
+            'accessToken': self.__access_token,
+            'cache-control': "no-cache",
+        }
+
+        response = requests.get(url, data=payload, headers=headers)
+
+        return response.json()
+
+    def create_sub_group(self , subgroup_name, members_list
+        ,parent_group_id = PRIVATE_GROUP_ID
+        ,welcome_msg = "Welcome to sub group created via sadeem"
+        ,group_type = "Group" , short_desc = "Short description" 
+        ,long_desc = "Long description"
+        ):
+
+        """
+        create both public and private sub-groups 
+        by default it create a private sub-group
+        but you can create a public sub-group by passing "group_type" parameter with the value "ConnectGroup"
+        """
+
+        result = self.create_group(subgroup_name , members_list , group_type , welcome_msg , long_desc , short_desc)
+        subgroup_id = result.get('groupId')
+        subgroups_list = [subgroup_id]
+
+        url = URL + "groups/" + parent_group_id + "/subGroups"
+
         payload = {
-            'name': name, 
-            'welcomeMessage': welcome_msg, 
-            'members':members_list, 
-            'groupType': group_type
+            'subGroups':subgroups_list
         }
         data = json.dumps(payload)
 
         headers = {
+            'accessToken': self.__access_token ,
             'Content-Type': "application/json",
-            'Authorization': "Bearer " + self.__access_token,
             'cache-control': "no-cache",
         }
-        
-        response = requests.post(url, data=data, headers=headers)
-        
-        return response.json()
 
-    def add_subscribers_to_public_group(self , subscribers_list , group_id = PUBLIC_GROUP_ID):
-        pass
+        response = requests.put( url, data=data, headers=headers)
+
+        return response.json()
+    
+    
